@@ -17,7 +17,12 @@ static const char *TAG = "example";
 #define SERVO_MIN_DEGREE        0   // Minimum angle
 #define SERVO_MAX_DEGREE        300    // Maximum angle
 
-#define SERVO_PULSE_GPIO             20        // GPIO connects to the PWM signal line
+#define SERVO_PULSE_GPIO_0             20        // GPIO connects to the PWM signal line
+#define SERVO_PULSE_GPIO_1             9        // GPIO connects to the PWM signal line
+#define SERVO_PULSE_GPIO_2             10        // GPIO connects to the PWM signal line
+#define SERVO_PULSE_GPIO_3             11        // GPIO connects to the PWM signal line
+#define SERVO_PULSE_GPIO_4             12        // GPIO connects to the PWM signal line
+
 #define SERVO_TIMEBASE_RESOLUTION_HZ 1000000  // 1MHz, 1us per tick
 #define SERVO_TIMEBASE_PERIOD        20000    // 20000 ticks, 20ms
 
@@ -57,7 +62,7 @@ void app_main(void)
 
     mcpwm_gen_handle_t generator = NULL;
     mcpwm_generator_config_t generator_config = {
-        .gen_gpio_num = SERVO_PULSE_GPIO,
+        .gen_gpio_num = SERVO_PULSE_GPIO_0,
     };
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
 
@@ -78,18 +83,17 @@ void app_main(void)
 
     int thumb_num = 0;
     bool isstart = 1;
-    
+    int flag = 0;
+
     int angle = 0;
     int step = 10;
-    
-    if (thumb_num==0){
-        angle = 240;
-        step = -10;
-    }
+    int range = 80;
 
     
     while (1) {
+               
         ESP_LOGI(TAG, "Angle of rotation: %d", angle);
+        printf("thumb_num=%d, angle=%d\n", thumb_num, angle);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(angle)));
         //Add delay, since it takes time for servo to rotate, usually 200ms/60degree rotation under 5V power supply
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -97,11 +101,59 @@ void app_main(void)
             vTaskDelay(pdMS_TO_TICKS(1500));
             isstart = 0;
         }
-        if ((angle + step) > 240 || (angle + step) < 0) {
+
+        if ((angle + step) > range || (angle + step) < 0) {
             step *= -1;
+            flag += 1;
         }
         angle += step;
-        // printf(angle); // 发送数据并换行
+
+        if (flag==2){
+            flag = 0;
+            thumb_num += 1;
+            
+            if (thumb_num > 4){
+                thumb_num = 0;
+            }
+            
+            if (thumb_num==0){
+                range = 80;
+            }
+            else{
+                range = 240;
+            }
+            
+            if (thumb_num==1||thumb_num==3||thumb_num==4){
+                angle = range;
+                step = -10;
+            }
+            else{
+                angle = 0;
+                step = 10;
+            }
+
+            switch (thumb_num) {
+                case 0:
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_0;
+                    break;
+                case 1:
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_1;
+                    break;
+                case 2:
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_2;
+                    break;
+                case 3:
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_3;
+                    break;
+                case 4:
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_4;
+                    break;
+                default:
+                    // 处理非法 thumb_num，例如赋予一个默认值或报错
+                    generator_config.gen_gpio_num = SERVO_PULSE_GPIO_0;
+                    break;
+            }
+        }
 
     }
 }
