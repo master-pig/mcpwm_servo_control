@@ -76,17 +76,32 @@ void app_main(void)
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 
+    int thumb_num = 0;
+    bool isstart = 1;
+    
     int angle = 0;
-    int step = 2;
+    int step = 10;
+    
+    if (thumb_num==0){
+        angle = 240;
+        step = -10;
+    }
+
+    
     while (1) {
         ESP_LOGI(TAG, "Angle of rotation: %d", angle);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(angle)));
         //Add delay, since it takes time for servo to rotate, usually 200ms/60degree rotation under 5V power supply
         vTaskDelay(pdMS_TO_TICKS(500));
-        // if ((angle + step) > 60 || (angle + step) < -60) {
-        //     step *= -1;
-        // }
-        // angle += step;
-        angle = 0;
+        if (isstart){
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            isstart = 0;
+        }
+        if ((angle + step) > 240 || (angle + step) < 0) {
+            step *= -1;
+        }
+        angle += step;
+        // printf(angle); // 发送数据并换行
+
     }
 }
