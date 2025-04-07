@@ -84,19 +84,21 @@ void app_main(void)
     int thumb_num = 0;
     bool isstart = 1;
     int flag = 0;
+    int basic_step = 10;
 
     int angle = 0;
-    int step = 10;
+    int step = basic_step;
     int range = 80;
 
     
     while (1) {
                
         ESP_LOGI(TAG, "Angle of rotation: %d", angle);
-        printf("thumb_num=%d, angle=%d\n", thumb_num, angle);
+        printf("thumb_num=%d, angle=%d,generator_config.gen_gpio_num=%d\n", thumb_num, angle,generator_config.gen_gpio_num);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, example_angle_to_compare(angle)));
         //Add delay, since it takes time for servo to rotate, usually 200ms/60degree rotation under 5V power supply
         vTaskDelay(pdMS_TO_TICKS(500));
+        
         if (isstart){
             vTaskDelay(pdMS_TO_TICKS(1500));
             isstart = 0;
@@ -125,13 +127,18 @@ void app_main(void)
             
             if (thumb_num==1||thumb_num==3||thumb_num==4){
                 angle = range;
-                step = -10;
+                step = -1*basic_step;
             }
             else{
                 angle = 0;
-                step = 10;
+                step = basic_step;
             }
-
+            
+            ESP_ERROR_CHECK(mcpwm_timer_disable(timer));
+            ESP_ERROR_CHECK(mcpwm_generator_disable(generator));
+            ESP_ERROR_CHECK(mcpwm_del_generator());
+            
+            generator = NULL;
             switch (thumb_num) {
                 case 0:
                     generator_config.gen_gpio_num = SERVO_PULSE_GPIO_0;
@@ -152,6 +159,15 @@ void app_main(void)
                     // 处理非法 thumb_num，例如赋予一个默认值或报错
                     generator_config.gen_gpio_num = SERVO_PULSE_GPIO_0;
                     break;
+            ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
+
+            ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(generator,
+                                                              MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH)));
+            // go low on compare threshold
+            ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(generator,
+                                                                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparator, MCPWM_GEN_ACTION_LOW)));
+
+            ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
             }
         }
 
